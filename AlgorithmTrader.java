@@ -143,31 +143,47 @@ public class AlgorithmTrader{
 		return purchaseOrSellPrice_;
 	}//end bracket for getter for purchaseorSell price
 	
+	public int Count(String countLines,String filename) throws IOException {
+		int file_Length=0;
+		File file=new File(filename);
+		Scanner inputFile=new Scanner(file);
+		// to see how many lines there is in the file
+		while(inputFile.hasNext()) {
+			countLines=inputFile.nextLine();
+			if(!(countLines.isEmpty())) {
+				file_Length++;
+			}//end of if
+		}//end of while statement
+		inputFile.close();
+		return file_Length;
+	}
+
 	/**
 	 * @param filename
 	 * @return stock
 	 * @throws IOException
 	 */
 	public ArrayList<Stock> ReadInputData(String filename) throws IOException{
-		
+		String countLines="";
 		String timeStamp="";
 		double closingPrice=0;
 		double highestPrice=0;
 		double lowestPrice=0;
 		double openingPrice=0;
 		double stockVolume=0;
-		
+		int file_length=Count(countLines,filename);
 		
 		File file=new File(filename);
 		Scanner inputFile=new Scanner(file);
-		ArrayList<Stock> stock=new ArrayList<Stock>();
+		ArrayList<Stock> stock=new ArrayList<Stock>(file_length);
 		
 		inputFile.nextLine();
 		//to add stocks from file into arraylist
-			while(inputFile.hasNext()) {
+			for(int i=0;i<file_length-1;i++) {
 			String fileLine=inputFile.nextLine();
-			if((fileLine!=null) && fileLine.length()>0) {
+			if( fileLine.length()>0 && !(fileLine.isEmpty())) {
 				String [] splitFile=fileLine.split(",");
+				
 				timeStamp=splitFile[0];
 				
 				closingPrice=(Double.parseDouble(splitFile[1]));
@@ -176,7 +192,7 @@ public class AlgorithmTrader{
 				openingPrice=(Double.parseDouble(splitFile[4]));
 				stockVolume=(Double.parseDouble(splitFile[5]));
 				stock.add(new Stock (timeStamp,closingPrice,highestPrice,lowestPrice,openingPrice,stockVolume));
-			
+			 
 			}//end of if
 			
 		}//end of while loop
@@ -188,9 +204,9 @@ public class AlgorithmTrader{
 	 * @param counter
 	 * @return buy
 	 */
-	public boolean EntryStrategy(int counter) {
+	public boolean EntryStrategy() {
 		boolean buy=false;
-		if(counter==BUY_SIGNAL_THREASHOLD) {
+		if(count==BUY_SIGNAL_THREASHOLD) {
 			buy=true;
 			
 		}
@@ -239,7 +255,7 @@ public class AlgorithmTrader{
 				if(currentPrice>previousPrice) {
 					
 					count++;
-					entryStrategy=EntryStrategy(count);
+					entryStrategy=EntryStrategy();
 					if(entryStrategy==true) {
 						
 						setShares(10000);
@@ -249,20 +265,17 @@ public class AlgorithmTrader{
 						setProfitLoss((getPurchaseOrSellPrice()*10000)-getPurchaseCost());
 						setPurchaseCost(10000*getCurrentPrice());
 						count=0;
-					
+						
+						
 					}//end bracket of inside if 
-					
+					currentPrice=previousPrice;
 				}//end bracket of outside if
-				else if(entryStrategy==false){
-					
-					
-					count=0;
 				
-				}//end bracket of else if
-
+				
 			}
+			
 				
-			if(getShares()==10000) {
+			if(getShares() ==10000) {
 				
 				exitStrategy=ExitStrategy(getPercentage());
 				if(exitStrategy=true) {
@@ -272,11 +285,12 @@ public class AlgorithmTrader{
 						setPercentage((getCurrentPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
 						setPurchaseCost(10000*stock_.get(i).getClosingPrice());
 						setShares(0);
-						setProfitLoss((getPurchaseOrSellPrice()*10000)-getPurchaseCost());
+						setProfitLoss(getPercentage()*getPurchaseCost());
 						setActualProfitLoss(0);
 						
+						
 					}//end bracket of if
-					/*else if(exitStrategy==false) {
+					else if(exitStrategy==false) {
 						System.out.print("Here0000");
 						setHoldStatus("HOLD");
 						setProfitLoss(0);
@@ -287,7 +301,8 @@ public class AlgorithmTrader{
 						setActualProfitLoss((getPurchaseOrSellPrice()*10000)-getPurchaseCost());
 						
 						
-					}*/
+						
+					}
 			
 					else if(stock_.size()==i && getShares()==10000) {
 						setHoldStatus("NONE");
@@ -299,13 +314,13 @@ public class AlgorithmTrader{
 						setActualProfitLoss(getPurchaseCost()-(getPurchaseOrSellPrice()*10000)+getActualProfitLoss());
 						 
 					}
-					
+				
 				}//end bracket of second outside if		
-			
+			System.out.printf("%s,\t%.3f\t,%d\t,%.2f\t,%.2f\t,%.2f\t,%s\t,%.2f\t,%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
 			setCurrentPrice(stock_.get(i).getClosingPrice());	
-			currentPrice=previousPrice;
 			
-			 System.out.printf("%s,\t%.3f\t,%d\t,%.2f\t,%.2f\t,%.2f\t,%s\t,%.2f\t,%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
+			
+			 
 		}//end bracket of the for loop
 	}//end of Run method
 }//end bracket for class
