@@ -15,6 +15,7 @@ public class AlgorithmTrader{
 	private final int BUY_SIGNAL_THREASHOLD=5;
 	private final double SELL_SIGNAL_THREASHOLD=.0012;
 	private int count=0;
+	ArrayList<Stock> stock_=new ArrayList<Stock>();
 	
 	//empty constructor 
 	/**
@@ -143,56 +144,38 @@ public class AlgorithmTrader{
 		return purchaseOrSellPrice_;
 	}//end bracket for getter for purchaseorSell price
 	
-	public int Count(String countLines,String filename) throws IOException {
-		int file_Length=0;
-		File file=new File(filename);
-		Scanner inputFile=new Scanner(file);
-		// to see how many lines there is in the file
-		while(inputFile.hasNext()) {
-			countLines=inputFile.nextLine();
-			if(!(countLines.isEmpty())) {
-				file_Length++;
-			}//end of if
-		}//end of while statement
-		inputFile.close();
-		return file_Length;
-	}
-
 	/**
 	 * @param filename
 	 * @return stock
 	 * @throws IOException
 	 */
 	public ArrayList<Stock> ReadInputData(String filename) throws IOException{
-		String countLines="";
+		
 		String timeStamp="";
 		double closingPrice=0;
 		double highestPrice=0;
 		double lowestPrice=0;
 		double openingPrice=0;
 		double stockVolume=0;
-		int file_length=Count(countLines,filename);
 		
 		File file=new File(filename);
 		Scanner inputFile=new Scanner(file);
-		ArrayList<Stock> stock=new ArrayList<Stock>(file_length);
+		ArrayList<Stock> stock=new ArrayList<Stock>();
 		
 		inputFile.nextLine();
 		//to add stocks from file into arraylist
-			for(int i=0;i<file_length-1;i++) {
+			while(inputFile.hasNext()) {
 			String fileLine=inputFile.nextLine();
-			if( fileLine.length()>0 && !(fileLine.isEmpty())) {
+			if((fileLine!=null) && fileLine.length()>0) {
 				String [] splitFile=fileLine.split(",");
-				
 				timeStamp=splitFile[0];
-				
 				closingPrice=(Double.parseDouble(splitFile[1]));
 				highestPrice=(Double.parseDouble(splitFile[2]));
 				lowestPrice=(Double.parseDouble(splitFile[3]));
 				openingPrice=(Double.parseDouble(splitFile[4]));
 				stockVolume=(Double.parseDouble(splitFile[5]));
 				stock.add(new Stock (timeStamp,closingPrice,highestPrice,lowestPrice,openingPrice,stockVolume));
-			 
+			
 			}//end of if
 			
 		}//end of while loop
@@ -201,126 +184,115 @@ public class AlgorithmTrader{
 		
 	}//end of Read inputData method
 	/**
-	 * @param counter
+	 * @param num
 	 * @return buy
 	 */
-	public boolean EntryStrategy() {
+	public boolean EntryStrategy(int num) {
 		boolean buy=false;
-		if(count==BUY_SIGNAL_THREASHOLD) {
+		
+	if(num!=0 && getShares()==0) {
+		double previous=stock_.get(num-1).getClosingPrice();
+		double currentPrice=stock_.get(num).getClosingPrice();
+		
+		if(currentPrice>previous ) {
 			buy=true;
 			
 		}
-		else{
+		else {
 			buy=false;
-			
 		}
-		return buy;
+	}
+		
+	return buy;
 			
 	}//end bracket of EntryStrategy method
 	/**
 	 * @return sell
 	 */
-	public boolean ExitStrategy(double changeInPercent) {
+	public boolean ExitStrategy(double percentChange, int shares) {
 		boolean sell=false;
-		if(changeInPercent>=SELL_SIGNAL_THREASHOLD || changeInPercent<=-SELL_SIGNAL_THREASHOLD){
+		if(percentChange>SELL_SIGNAL_THREASHOLD || percentChange<-SELL_SIGNAL_THREASHOLD && shares==10000) {
 			sell=true;
 			
-		}//end bracket of if
+		}
 		else {
 			sell=false;
-		}//end bracket of else
+		}
 		return sell;
 		
 	}//end bracket of the exit strategy
+	
 	public void Run(String nameOfFile) throws IOException{
 		
-		boolean entryStrategy=false;
-		boolean exitStrategy=false;
+		boolean entryStrategy;
+		boolean exitStrategy;
 	
-		ArrayList<Stock> stock_=new ArrayList<Stock>();
+		setShares(0);
+		
 		stock_=ReadInputData(nameOfFile);
 		
-
-		double previousPrice=stock_.get(0).getClosingPrice();
 		System.out.println("TIMESTAMP,CURRENT_PRICE,SHARES,P/L_PERCENT,PROFIT/LOSS,REALIZED_PROFIT/LOSS,HOLD/NONE,PURCHASE/SELL_PRICE,PURCHASE_COST");
+	
 		
-		setHoldStatus("NONE");
-		setShares(0);
 		for(int i=0;i<stock_.size();i++) {
+			setCurrentPrice(stock_.get(i).getClosingPrice());
+			entryStrategy=EntryStrategy(i);
 			
-			
-			double currentPrice=stock_.get(i).getClosingPrice();
-			if( getShares()==0) {
-				
-				if(currentPrice>previousPrice) {
+			if(entryStrategy==true) {
+				count++;
+				if(count==BUY_SIGNAL_THREASHOLD) {
+
+					setShares(10000);
+					setPurchaseCost(10000*getCurrentPrice());
+					setHoldStatus("HOLD");
+					setPurchaseOrSellPrice(getCurrentPrice());
 					
-					count++;
-					entryStrategy=EntryStrategy();
-					if(entryStrategy==true) {
-						
-						setShares(10000);
-						setHoldStatus("HOLD");
-						setPurchaseOrSellPrice(getCurrentPrice());
-						setActualProfitLoss(getActualProfitLoss()+getProfitLoss());
-						setProfitLoss((getPurchaseOrSellPrice()*10000)-getPurchaseCost());
-						setPurchaseCost(10000*getCurrentPrice());
-						count=0;
-						
-						
-					}//end bracket of inside if 
-					currentPrice=previousPrice;
-				}//end bracket of outside if
-				
+					//setActualProfitLoss(0);
+					
+					
+					count=0;		
+				}
 				
 			}
+			else if(entryStrategy==false) {
+				count=0;
+			}
 			
+			exitStrategy = ExitStrategy(getPercentage(),getShares());	
 				
-			if(getShares() ==10000) {
+			if(exitStrategy == true) {
+					setHoldStatus("NONE");
+					
+					setPurchaseOrSellPrice(getCurrentPrice());
+					
+					setProfitLoss(0);
+					setShares(0);
+					
+					setActualProfitLoss((getPercentage()*getPurchaseCost())+getActualProfitLoss());
+					
 				
-				exitStrategy=ExitStrategy(getPercentage());
-				if(exitStrategy=true) {
+			}
+
+			if(getHoldStatus().equals("NONE")) {
+				setPercentage(0);
 				
-						setHoldStatus("NONE");
-						setPurchaseOrSellPrice(getCurrentPrice());
-						setPercentage((getCurrentPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
-						setPurchaseCost(10000*stock_.get(i).getClosingPrice());
-						setShares(0);
-						setProfitLoss(getPercentage()*getPurchaseCost());
-						setActualProfitLoss(0);
-						
-						
-					}//end bracket of if
-					else if(exitStrategy==false) {
-						System.out.print("Here0000");
-						setHoldStatus("HOLD");
-						setProfitLoss(0);
-						setShares(10000);
-						setPurchaseOrSellPrice(getCurrentPrice());
-						setPurchaseCost(10000*stock_.get(i).getClosingPrice());
-						setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
-						setActualProfitLoss((getPurchaseOrSellPrice()*10000)-getPurchaseCost());
-						
-						
-						
-					}
-			
-					else if(stock_.size()==i && getShares()==10000) {
-						setHoldStatus("NONE");
-						setPurchaseOrSellPrice(getCurrentPrice());
-						setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
-						setPurchaseCost(10000*stock_.get(i).getClosingPrice());
-						setShares(0);
-						setProfitLoss(0);
-						setActualProfitLoss(getPurchaseCost()-(getPurchaseOrSellPrice()*10000)+getActualProfitLoss());
-						 
-					}
+				setProfitLoss(0);
 				
-				}//end bracket of second outside if		
-			System.out.printf("%s,\t%.3f\t,%d\t,%.2f\t,%.2f\t,%.2f\t,%s\t,%.2f\t,%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
-			setCurrentPrice(stock_.get(i).getClosingPrice());	
+				
+				
+			}else {
+				setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
+				setProfitLoss((getCurrentPrice()-getPurchaseOrSellPrice())*10000);
+				
+			}
+			if(stock_.size()==i && getHoldStatus().equals("HOLD")) {
+				exitStrategy=true;
+			}
 			
 			
-			 
+				
+			System.out.printf("%s,\t%.4f\t,%d\t,%.6f\t,%.2f\t,%.2f\t,%s\t,%.3f\t,%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
 		}//end bracket of the for loop
+		
 	}//end of Run method
 }//end bracket for class
