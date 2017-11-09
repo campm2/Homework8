@@ -2,6 +2,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.io.IOException;
+import java.io.PrintWriter;
 
 public class AlgorithmTrader{
 	private double currentPrice_=0;
@@ -190,20 +191,20 @@ public class AlgorithmTrader{
 	public boolean EntryStrategy(int num) {
 		boolean buy=false;
 		
-	if(num!=0 && getShares()==0) {
-		double previous=stock_.get(num-1).getClosingPrice();
-		double currentPrice=stock_.get(num).getClosingPrice();
+		if(num!=0 && getShares()==0) {
+			double previous=stock_.get(num-1).getClosingPrice();
+			double currentPrice=stock_.get(num).getClosingPrice();
 		
-		if(currentPrice>previous ) {
-			buy=true;
+			if(currentPrice>previous ) {
+				buy=true;
 			
-		}
-		else {
-			buy=false;
-		}
-	}
+			}//end bracket of if
+			else {
+				buy=false;
+			}//end bracket of else 
+		}//end bracket of outside if 
 		
-	return buy;
+		return buy;
 			
 	}//end bracket of EntryStrategy method
 	/**
@@ -222,77 +223,83 @@ public class AlgorithmTrader{
 		
 	}//end bracket of the exit strategy
 	
+	/**	
+	 * @param nameOfFile
+	 * @throws IOException
+	 */
 	public void Run(String nameOfFile) throws IOException{
-		
+		PrintWriter output=new PrintWriter("tradingSummary.csv");
 		boolean entryStrategy;
 		boolean exitStrategy;
 	
 		setShares(0);
-		
 		stock_=ReadInputData(nameOfFile);
 		
-		System.out.println("TIMESTAMP,CURRENT_PRICE,SHARES,P/L_PERCENT,PROFIT/LOSS,REALIZED_PROFIT/LOSS,HOLD/NONE,PURCHASE/SELL_PRICE,PURCHASE_COST");
-	
+		output.println("TIMESTAMP,CURRENT_PRICE,SHARES,P/L_PERCENT,PROFIT/LOSS,REALIZED_PROFIT/LOSS,HOLD/NONE,PURCHASE/SELL_PRICE,PURCHASE_COST");
 		
 		for(int i=0;i<stock_.size();i++) {
 			setCurrentPrice(stock_.get(i).getClosingPrice());
-			entryStrategy=EntryStrategy(i);
+			if(getHoldStatus().equals("NONE")) {
+				
+				setProfitLoss(0);
+				//just changed
+				setPercentage(getPercentage());
+				
+			}//end bracket of if 
+			else {
+				setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
+				setProfitLoss((getCurrentPrice()-getPurchaseOrSellPrice())*10000);
+				
+			}//end bracket of else 
 			
+			
+			entryStrategy=EntryStrategy(i);
+			//if current Price is greater than previous
 			if(entryStrategy==true) {
 				count++;
+				//you buy stock
 				if(count==BUY_SIGNAL_THREASHOLD) {
-
+					
 					setShares(10000);
 					setPurchaseCost(10000*getCurrentPrice());
 					setHoldStatus("HOLD");
 					setPurchaseOrSellPrice(getCurrentPrice());
+					//this is what last got changed
+					setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
 					
 					//setActualProfitLoss(0);
 					
 					
 					count=0;		
-				}
+				}//end bracket of inside if
 				
-			}
+			}//end bracket of outside if
 			else if(entryStrategy==false) {
 				count=0;
-			}
+			}//end bracket of else if
 			
 			exitStrategy = ExitStrategy(getPercentage(),getShares());	
-				
+				// only if percent is either less than or greater than .0012 and shares are 10000
 			if(exitStrategy == true) {
+				
 					setHoldStatus("NONE");
-					
 					setPurchaseOrSellPrice(getCurrentPrice());
 					
-					setProfitLoss(0);
 					setShares(0);
-					
 					setActualProfitLoss((getPercentage()*getPurchaseCost())+getActualProfitLoss());
+					setProfitLoss(0);
 					
 				
-			}
-
-			if(getHoldStatus().equals("NONE")) {
-				setPercentage(0);
-				
-				setProfitLoss(0);
-				
-				
-				
-			}else {
-				setPercentage((stock_.get(i).getClosingPrice()-getPurchaseOrSellPrice())/getPurchaseOrSellPrice());
-				setProfitLoss((getCurrentPrice()-getPurchaseOrSellPrice())*10000);
-				
-			}
+			}//end bracket of if 
 			if(stock_.size()==i && getHoldStatus().equals("HOLD")) {
 				exitStrategy=true;
-			}
+			}//end bracket of if
+
 			
-			
-				
-			System.out.printf("%s,\t%.4f\t,%d\t,%.6f\t,%.2f\t,%.2f\t,%s\t,%.3f\t,%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
+			//output results to csv file
+			output.printf("%s,\t%.4f\t,%d\t,%.8f\t,$%.2f\t,$%.2f\t,%s\t,%.4f\t,$%.2f\r\n", stock_.get(i).getTimeStamp(),getCurrentPrice(),getShares(),getPercentage(),getProfitLoss(),getActualProfitLoss(),getHoldStatus(),getPurchaseOrSellPrice(),getPurchaseCost());
 		}//end bracket of the for loop
-		
+		//close file
+		output.close();
 	}//end of Run method
 }//end bracket for class
